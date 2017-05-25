@@ -19,7 +19,7 @@ class LoadableConfig
   end
 
   def self.config_file(path)
-    @_config_file = File.join(Rails.root, path)
+    @_config_file = path
   end
 
   def self.attribute(attr, type: :string, optional: false)
@@ -28,7 +28,7 @@ class LoadableConfig
     attr_accessor attr
 
     singleton_class.instance_eval do
-      delegate attr, to: :instance
+      define_method(attr) { self.class.send(attr) }
     end
   end
 
@@ -39,25 +39,42 @@ class LoadableConfig
   end
 
   def initialize
-    unless File.exist?(self.class._config_file)
-      raise RuntimeError.new("Cannot configure #{self.class.name}: configuration file '#{self.class._config_file}' missing")
+    prefix = LoadableConfig::Options.config_path_prefix || ''
+    subkey = LoadableConfig::Options.subkey || nil
+
+    prefix.chomp('/').concat('/') unless prefix.empty?
+    subkey = subkey.to_s          unless subkey.nil?
+
+    if self.class._config_file.nil? || self.class._config_file.empty?
+      raise RuntimeError.new("config_file not set")
     end
 
-    config = YAML.load(File.open(self.class._config_file, "r"))
-    env_config = config[Rails.env.to_s]
+    config_file_path = "#{prefix}#{self.class._config_file}"
 
-    unless env_config
-      raise RuntimeError.new("Cannot configure #{self.class.name}: no configuration defined for Rails environment #{Rails.env}")
+    unless File.exist?(config_file_path)
+      raise RuntimeError.new("Cannot configure #{self.class.name}: configuration file '#{config_file_path}' missing")
     end
 
-    valid, errors = _schema.validate(env_config)
+    full_config = YAML.load(File.open(config_file_path, "r"))
+
+    if subkey
+      config = full_config[subkey]
+    else
+      config = full_config
+    end
+
+    unless config
+      raise RuntimeError.new("Cannot configure #{self.class.name}.")
+    end
+
+    valid, errors = _schema.validate(config)
     unless valid
       raise ArgumentError.new("Errors parsing #{self.class.name}:\n" +
                               errors.map { |e| "#{e.pointer}: #{e.message}" }.join("\n"))
     end
 
     self.class._attributes.each do |attr|
-      self.public_send(:"#{attr.name}=", env_config[attr.name])
+      self.public_send(:"#{attr.name}=", config[attr.name])
     end
 
     self.freeze
@@ -75,5 +92,11 @@ class LoadableConfig
       'required'             => self.class._attributes.reject(&:optional).map(&:name),
       'additionalProperties' => false
     )
+  end
+
+  class Options
+    class << self
+      attr_accessor :config_path_prefix, :subkey
+    end
   end
 end
