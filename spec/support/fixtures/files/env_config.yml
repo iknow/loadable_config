@@ -2,9 +2,9 @@ development:
   number: 1
   sizes: 2
   counts: 3
-  name: "Tester"
+  text: "Tester"
 production:
   number: 100
   sizes: 2
   counts: 3
-  name: "Tester"
+  text: "Tester"

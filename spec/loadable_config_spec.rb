@@ -1,207 +1,170 @@
 require "loadable_config"
-RSpec.describe LoadableConfig do
-  let(:config_class) do
-    path = file_fixture('my_config.yml')
+require "spec_helper"
 
+RSpec.describe LoadableConfig do
+
+  let(:path) { file_fixture('top_level_config.yml') }
+
+  let(:config_class) do
+    path = self.path
     Class.new(LoadableConfig) do
-      attribute :number, type: :integer
-      attributes :sizes, :counts, type: :integer
-      attribute :name
+      attribute  :number, type: :integer
+      attribute  :text
 
       config_file path
     end
   end
 
-  before(:all) { LoadableConfig::Options.subkey = "development" }
+  it "reads an attribute from an unkeyed file" do
+    expect(config_class.number).to eq(200)
+  end
 
   it "stores a configuration file path" do
-    expect(config_class._config_file).to eq file_fixture("my_config.yml")
+    expect(config_class._config_file).to eq file_fixture("top_level_config.yml")
   end
 
-  it "can read an attribute" do
-    expect(config_class.instance.number).to eq 1
-  end
+  context "with environment keying" do
+    let(:path) { file_fixture('env_config.yml') }
 
-  context "production environment" do
     let(:config_class) do
-      path = file_fixture('my_config.yml')
-
+      path = self.path
       Class.new(LoadableConfig) do
-        attribute  :number, type: :integer
+        attribute :number, type: :integer
         attributes :sizes, :counts, type: :integer
-        attribute  :name
+        attribute :text
 
         config_file path
       end
     end
 
-    it "reads from the correct environment" do
-      begin
-        LoadableConfig::Options.subkey = "production"
+    before(:each) do
+      environment = self.environment
+      LoadableConfig.configure! do |config|
+        config.environment_key = environment
+      end
+    end
+
+    after(:each) do
+      LoadableConfig.send(:_reinitialize_configuration!)
+    end
+
+    context "for development" do
+      let(:environment) { :development }
+
+      it "reads from the correct environment" do
+        expect(config_class.instance.number).to eq 1
+      end
+    end
+
+    context "for production" do
+      let(:environment) { :production }
+
+      it "reads from the correct environment" do
         expect(config_class.instance.number).to eq 100
-      ensure
-        LoadableConfig::Options.subkey = "development"
+      end
+    end
+
+    context "but an invalid key" do
+      let(:environment) { :does_not_exist }
+
+      it "raises an error when accessing the instance" do
+        expect { config_class.instance }
+          .to raise_error(RuntimeError, /Configuration missing for environment/)
       end
     end
   end
 
-  context "missing config file" do
-    let(:config_class) do
-      Class.new(LoadableConfig) do
-        attribute  :number, type: :integer
-        attributes :sizes, :counts, type: :integer
-        attribute  :name
-
-        config_file "foobar"
-      end
-    end
+  context "with a missing config file" do
+    let(:path) { "nonexistent_file" }
 
     it "returns an error when accessing the instance" do
-      expect { config_class.instance }.to raise_error(RuntimeError)
+      expect { config_class.instance }.to raise_error(RuntimeError, /configuration file.*missing/)
     end
   end
 
-  context "no subkey" do
-    let(:config_class) do
-      path = file_fixture('top_level.yml')
+  context "with a path prefix" do
+    # Test by slicing apart the basename and filename
+    let(:path_parts) do
+      File.split(file_fixture('top_level_config.yml'))
+    end
 
-      Class.new(LoadableConfig) do
-        attribute  :number, type: :integer
-        attribute  :name
+    let(:prefix) { path_parts.first }
+    let(:path) { path_parts.last }
 
-        config_file path
+    before(:each) do
+      LoadableConfig.configure! do |config|
+        config.config_path_prefix = prefix
       end
     end
 
-    it "reads an attribute" do
-      begin
-        LoadableConfig::Options.subkey = nil
-        expect { config_class.instance }.to raise_error(RuntimeError)
-      ensure
-        LoadableConfig::Options.subkey = "development"
-      end
-    end
-  end
-
-  context "with a default prefix" do
-    let(:config_class) do
-      path = @path
-
-      Class.new(LoadableConfig) do
-        attribute  :number, type: :integer
-        attributes :sizes, :counts, type: :integer
-        attribute  :name
-
-        config_file path
-      end
+    after(:each) do
+      LoadableConfig.send(:_reinitialize_configuration!)
     end
 
     it "can read an attribute" do
-      path = file_fixture("my_config.yml")
-      prefix = path.slice(0,2)
-      @path = path.slice(2, path.length-1)
-
-      begin
-        LoadableConfig::Options.config_path_prefix = prefix
-        expect(config_class.instance.number).to eq 1
-      ensure
-        LoadableConfig::Options.config_path_prefix = ''
-      end
+      expect(config_class.number).to eq 200
     end
-
   end
 
-  context "no config_file" do
+  context "no config_file set" do
     let(:config_class) do
       Class.new(LoadableConfig) do
         attribute  :number, type: :integer
         attributes :sizes, :counts, type: :integer
-        attribute  :name
+        attribute  :text
       end
     end
 
-    it "returns an error when accessing the instance" do
-      expect { config_class.instance }.to raise_error(RuntimeError)
+    it "raises an error when accessing the instance" do
+      expect { config_class.instance }.to raise_error(RuntimeError, /config_file not set/)
     end
   end
 
-  context "too few attributes" do
+  context "config file missing attribute" do
     let(:config_class) do
-      path = file_fixture('my_config.yml')
-
+      path = self.path
       Class.new(LoadableConfig) do
-        attribute  :number, type: :integer
-        attributes :sizes, :counts, type: :integer
+        attribute :number, type: :integer
+        attribute :text
+        attribute :missing_attr, type: :integer
 
         config_file path
       end
     end
 
     it "returns an error when accessing the instance" do
-      expect { config_class.instance }.to raise_error(ArgumentError)
+      expect { config_class.instance }.to raise_error(ArgumentError, /missing_attr/)
     end
   end
 
-  context "too many attributes" do
-
+  context "config file has too many attributes" do
     let(:config_class) do
-      path = file_fixture('my_config.yml')
-
+      path = self.path
       Class.new(LoadableConfig) do
         attribute  :number, type: :integer
-        attributes :sizes, :counts, type: :integer
-        attribute  :name
-        attribute  :foobar
 
         config_file path
       end
     end
 
     it "returns an error when accessing the instance" do
-      expect { config_class.instance }.to raise_error(ArgumentError)
+      expect { config_class.instance }.to raise_error(ArgumentError, /text/)
     end
   end
 
-  context "mistyped attribute" do
-
+  context "config file has attribute with incorrect type" do
     let(:config_class) do
-      path = file_fixture('my_config.yml')
-
+      path = self.path
       Class.new(LoadableConfig) do
         attribute  :number, type: :string
-        attributes :sizes, :counts, type: :integer
-        attribute  :name
+        attribute  :text
 
         config_file path
       end
     end
 
     it "returns an error when accessing the instance" do
-      expect { config_class.instance }.to raise_error(ArgumentError)
-    end
-  end
-
-  context "bad subkey" do
-
-    let(:config_class) do
-      path = file_fixture('my_config.yml')
-
-      Class.new(LoadableConfig) do
-        attribute  :number, type: :integer
-        attributes :sizes, :counts, type: :integer
-        attribute  :name
-
-        config_file path
-      end
-    end
-
-    it "returns an error when accessing the instance" do
-      begin
-        LoadableConfig::Options.subkey = "foobar"
-        expect { config_class.instance }.to raise_error(RuntimeError)
-      ensure
-        LoadableConfig::Options.subkey = "development"
-      end
+      expect { config_class.instance }.to raise_error(ArgumentError, /number/)
     end
   end
 end

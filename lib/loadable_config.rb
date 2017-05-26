@@ -1,4 +1,5 @@
 require 'loadable_config/version'
+require 'loadable_config/options'
 require 'json_schema'
 require 'yaml'
 require 'singleton'
@@ -12,59 +13,87 @@ class LoadableConfig
 
   class << self
     attr_reader :_attributes, :_config_file
-  end
 
-  def self.inherited(subclass)
-    subclass.send(:include, Singleton)
-  end
+    def inherited(subclass)
+      subclass.send(:include, Singleton)
+    end
 
-  def self.config_file(path)
-    @_config_file = path
-  end
+    def config_file(path)
+      @_config_file = path
+    end
 
-  def self.attribute(attr, type: :string, optional: false)
-    @_attributes ||= []
-    _attributes << Attribute.new(attr, type, optional)
-    attr_accessor attr
+    def attribute(attr, type: :string, optional: false)
+      @_attributes ||= []
+      attr = attr.to_sym
+      if ATTRIBUTE_BLACKLIST.include?(attr)
+        raise ArgumentError.new("Illegal attribute name '#{attr}': attributes must not collide with class methods of LoadableConfig")
+      end
 
-    singleton_class.instance_eval do
-      define_method(attr) { self.class.send(attr) }
+      _attributes << Attribute.new(attr, type, optional)
+      attr_accessor attr
+      define_singleton_method(attr) { instance.send(attr) }
+    end
+
+    def attributes(*attrs, type: :string, optional: false)
+      attrs.each do |attr|
+        attribute(attr, type: type, optional: optional)
+      end
+    end
+
+    def _configuration
+      @@_configuration
+    end
+
+    def configure!(&block)
+      if @@_configuration.frozen?
+        raise ArgumentError.new("Cannot configure LoadableConfig: already configured")
+      end
+      yield(@@_configuration)
+      @@_configuration.freeze
+    end
+
+    private
+
+    def _reinitialize_configuration!
+      @@_configuration = LoadableConfig::Options.new
     end
   end
 
-  def self.attributes(*attrs, type: :string, optional: false)
-    attrs.each do |attr|
-      attribute(attr, type: type, optional: optional)
-    end
-  end
+  _reinitialize_configuration!
+
+  ATTRIBUTE_BLACKLIST = Set.new(self.methods - Object.instance_methods)
 
   def initialize
-    prefix = LoadableConfig::Options.config_path_prefix || ''
-    subkey = LoadableConfig::Options.subkey || nil
-
-    prefix.chomp('/').concat('/') unless prefix.empty?
-    subkey = subkey.to_s          unless subkey.nil?
-
     if self.class._config_file.nil? || self.class._config_file.empty?
-      raise RuntimeError.new("config_file not set")
+      raise RuntimeError.new("Incomplete LoadableConfig '#{self.class.name}': config_file not set")
     end
 
-    config_file_path = "#{prefix}#{self.class._config_file}"
+    config_file_path = self.class._config_file
+
+    if prefix = LoadableConfig._configuration.config_path_prefix
+      config_file_path = File.join(prefix, config_file_path)
+    end
 
     unless File.exist?(config_file_path)
-      raise RuntimeError.new("Cannot configure #{self.class.name}: configuration file '#{config_file_path}' missing")
+      raise RuntimeError.new("Cannot configure #{self.class.name}: "\
+                             "configuration file '#{config_file_path}' missing")
     end
 
-    full_config = YAML.load(File.open(config_file_path, "r"))
+    config = YAML.load(File.open(config_file_path, "r"))
+    unless config
+      raise RuntimeError.new("Cannot configure #{self.class.name}: "\
+                             "Configuration file empty for #{self.class.name}.")
+    end
 
-    if subkey
-      config = full_config[subkey]
-    else
-      config = full_config
+    if env = LoadableConfig._configuration.environment_key
+      config = config.fetch(env) do
+        raise RuntimeError.new("Cannot configure #{self.class.name}: "\
+                               "Configuration missing for environment '#{env}'")
+      end
     end
 
     unless config
-      raise RuntimeError.new("Cannot configure #{self.class.name}.")
+      raise RuntimeError.new("Configuration file missing config for #{self.class.name}.")
     end
 
     valid, errors = _schema.validate(config)
@@ -92,11 +121,5 @@ class LoadableConfig
       'required'             => self.class._attributes.reject(&:optional).map(&:name),
       'additionalProperties' => false
     )
-  end
-
-  class Options
-    class << self
-      attr_accessor :config_path_prefix, :subkey
-    end
   end
 end
