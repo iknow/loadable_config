@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'loadable_config/version'
 require 'loadable_config/options'
 require 'json_schema'
@@ -5,11 +7,7 @@ require 'yaml'
 require 'singleton'
 
 class LoadableConfig
-  Attribute = Struct.new(:name, :type, :optional) do
-    def initialize(name, type, optional)
-      super(name.to_s, type.to_s, optional)
-    end
-  end
+  Attribute = Struct.new(:name, :type, :schema, :optional)
 
   class << self
     attr_reader :_attributes, :_config_file
@@ -22,14 +20,14 @@ class LoadableConfig
       @_config_file = path
     end
 
-    def attribute(attr, type: :string, optional: false)
+    def attribute(attr, type: :string, schema: {}, optional: false)
       @_attributes ||= []
       attr = attr.to_sym
       if ATTRIBUTE_BLACKLIST.include?(attr)
         raise ArgumentError.new("Illegal attribute name '#{attr}': attributes must not collide with class methods of LoadableConfig")
       end
 
-      _attributes << Attribute.new(attr, type, optional)
+      _attributes << Attribute.new(attr.to_s, type.to_s, schema, optional)
       attr_accessor attr
       define_singleton_method(attr) { instance.send(attr) }
     end
@@ -44,7 +42,7 @@ class LoadableConfig
       @@_configuration
     end
 
-    def configure!(&block)
+    def configure!
       if @@_configuration.frozen?
         raise ArgumentError.new("Cannot configure LoadableConfig: already configured")
       end
@@ -70,7 +68,7 @@ class LoadableConfig
 
     config_file_path = self.class._config_file
 
-    if prefix = LoadableConfig._configuration.config_path_prefix
+    if (prefix = LoadableConfig._configuration.config_path_prefix)
       config_file_path = File.join(prefix, config_file_path)
     end
 
@@ -79,13 +77,13 @@ class LoadableConfig
                              "configuration file '#{config_file_path}' missing")
     end
 
-    config = YAML.load(File.open(config_file_path, "r"))
+    config = YAML.safe_load(File.open(config_file_path, "r"))
     unless config
       raise RuntimeError.new("Cannot configure #{self.class.name}: "\
                              "Configuration file empty for #{self.class.name}.")
     end
 
-    if env = LoadableConfig._configuration.environment_key
+    if (env = LoadableConfig._configuration.environment_key)
       config = config.fetch(env) do
         raise RuntimeError.new("Cannot configure #{self.class.name}: "\
                                "Configuration missing for environment '#{env}'")
@@ -116,7 +114,7 @@ class LoadableConfig
       'type'                 => 'object',
       'description'          => "#{self.class.name} Configuration",
       'properties'           => self.class._attributes.each_with_object({}) do |attr, h|
-                                  h[attr.name] = { 'type' => attr.type }
+                                  h[attr.name] = { 'type' => attr.type }.merge!(attr.schema)
                                 end,
       'required'             => self.class._attributes.reject(&:optional).map(&:name),
       'additionalProperties' => false
