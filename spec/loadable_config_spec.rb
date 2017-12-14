@@ -21,9 +21,11 @@ RSpec.describe LoadableConfig do
     attribute :text
   end
 
+  let(:data_file_contents) { YAML.dump(config_data) }
+
   let(:data_file) do
     file = Tempfile.new
-    file.write(YAML.dump(config_data))
+    file.write(data_file_contents)
     file.rewind
     file
   end
@@ -220,6 +222,23 @@ RSpec.describe LoadableConfig do
       it "raises an error when accessing the instance" do
         expect { config_class.instance }
           .to raise_error(RuntimeError, /Configuration missing for environment/)
+      end
+    end
+
+    context 'with a config file with aliases' do
+      let(:environment) { :production }
+
+      let(:data_file_contents) do
+        <<-DATA_FILE_CONTENTS
+          development: &development
+            text: shared
+
+          production: *development
+        DATA_FILE_CONTENTS
+      end
+
+      it 'resolve aliases' do
+        expect(config_class.text).to eq("shared")
       end
     end
   end
