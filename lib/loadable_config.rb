@@ -77,7 +77,7 @@ class LoadableConfig
                              "configuration file '#{config_file_path}' missing")
     end
 
-    config = YAML.safe_load(File.open(config_file_path, "r"))
+    config = YAML.safe_load(File.open(config_file_path, "r"), [], [], true)
     unless config
       raise RuntimeError.new("Cannot configure #{self.class.name}: "\
                              "Configuration file empty for #{self.class.name}.")
