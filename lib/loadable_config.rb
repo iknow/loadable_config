@@ -45,7 +45,7 @@ class LoadableConfig
 
     def configure!
       if @@_configuration.frozen?
-        raise ArgumentError.new("Cannot configure LoadableConfig: already configured")
+        raise ArgumentError.new('Cannot configure LoadableConfig: already configured')
       end
       yield(@@_configuration)
       @@_configuration.freeze
@@ -78,7 +78,7 @@ class LoadableConfig
                              "configuration file '#{config_file_path}' missing")
     end
 
-    config = YAML.safe_load(File.open(config_file_path, "r"), [], [], true)
+    config = YAML.safe_load(File.open(config_file_path, 'r'), [], [], true)
     unless config
       raise RuntimeError.new("Cannot configure #{self.class.name}: "\
                              "Configuration file empty for #{self.class.name}.")
@@ -122,7 +122,7 @@ class LoadableConfig
                                   h[attr.name] = { 'type' => attr.type }.merge!(attr.schema)
                                 end,
       'required'             => self.class._attributes.reject(&:optional).map(&:name),
-      'additionalProperties' => false
+      'additionalProperties' => false,
     )
   end
 end
