@@ -7,7 +7,7 @@ require 'yaml'
 require 'singleton'
 
 class LoadableConfig
-  Attribute = Struct.new(:name, :type, :schema, :optional)
+  Attribute = Struct.new(:name, :type, :schema, :optional, :serializer)
 
   class << self
     attr_reader :_attributes, :_config_file
@@ -20,14 +20,15 @@ class LoadableConfig
       @_config_file = path
     end
 
-    def attribute(attr, type: :string, schema: {}, optional: false)
+    def attribute(attr, type: :string, schema: {}, optional: false, serializer: nil)
       @_attributes ||= []
       attr = attr.to_sym
       if ATTRIBUTE_BLACKLIST.include?(attr)
-        raise ArgumentError.new("Illegal attribute name '#{attr}': attributes must not collide with class methods of LoadableConfig")
+        raise ArgumentError.new("Illegal attribute name '#{attr}': "\
+                                'attributes must not collide with class methods of LoadableConfig')
       end
 
-      _attributes << Attribute.new(attr.to_s, type.to_s, schema, optional)
+      _attributes << Attribute.new(attr.to_s, type.to_s, schema, optional, serializer)
       attr_accessor attr
       define_singleton_method(attr) { instance.send(attr) }
     end
@@ -101,7 +102,11 @@ class LoadableConfig
     end
 
     self.class._attributes.each do |attr|
-      self.public_send(:"#{attr.name}=", config[attr.name])
+      value = config[attr.name]
+      if attr.serializer
+        value = attr.serializer.load(value)
+      end
+      self.public_send(:"#{attr.name}=", value)
     end
 
     self.freeze

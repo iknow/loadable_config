@@ -116,6 +116,24 @@ RSpec.describe LoadableConfig do
     end
   end
 
+  context 'with a serialized attribute' do
+    let(:value) { 'hi' }
+
+    letblk(:attributes) do
+      attribute :value, type: :string, serializer: YAML
+    end
+
+    let(:config_data) do
+      {
+        'value' => "--- hi\n...\n",
+      }
+    end
+
+    it 'reads an attribute' do
+      expect(config_class.value).to eq(value)
+    end
+  end
+
   context "with complex typed attributes" do
     let(:object) do
       {
