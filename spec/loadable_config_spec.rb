@@ -1,19 +1,19 @@
 # frozen_string_literal: true
 
-require "loadable_config"
-require "spec_helper"
-require "tempfile"
+require 'loadable_config'
+require 'spec_helper'
+require 'tempfile'
 
 RSpec.describe LoadableConfig do
   def self.letblk(name, &proc)
     let(name) { proc }
   end
 
-  let(:text) { "Baz" }
+  let(:text) { 'Baz' }
 
   let(:config_data) do
     {
-      "text" => text
+      'text' => text,
     }
   end
 
@@ -41,34 +41,34 @@ RSpec.describe LoadableConfig do
     end
   end
 
-  it "stores a configuration file path" do
+  it 'stores a configuration file path' do
     expect(config_class._config_file).to eq data_file.path
   end
 
-  it "reads an attribute" do
+  it 'reads an attribute' do
     expect(config_class.text).to eq(text)
   end
 
-  context "with nil config data" do
+  context 'with nil config data' do
     let(:text) { nil }
 
-    it "returns an error when accessing the instance" do
+    it 'returns an error when accessing the instance' do
       expect { config_class.instance }.to raise_error(ArgumentError, /nil is not a/)
     end
   end
 
-  context "with config data missing an attribute" do
+  context 'with config data missing an attribute' do
     let(:config_data) { {} }
 
-    it "returns an error when accessing the instance" do
+    it 'returns an error when accessing the instance' do
       expect { config_class.instance }.to raise_error(ArgumentError, /wasn't supplied/)
     end
   end
 
-  context "with config data including unknown attributes" do
-    let(:config_data) { super().merge("unknown" => 1) }
+  context 'with config data including unknown attributes' do
+    let(:config_data) { super().merge('unknown' => 1) }
 
-    it "returns an error when accessing the instance" do
+    it 'returns an error when accessing the instance' do
       expect { config_class.instance }.to raise_error(ArgumentError, /is not a permitted/)
     end
   end
@@ -76,8 +76,8 @@ RSpec.describe LoadableConfig do
   context "using 'attributes' multi-setter" do
     let(:config_data) do
       {
-        "text1" => "Foo",
-        "text2" => "Bar"
+        'text1' => 'Foo',
+        'text2' => 'Bar',
       }
     end
 
@@ -85,17 +85,17 @@ RSpec.describe LoadableConfig do
       attributes :text1, :text2
     end
 
-    it "reads an attribute" do
-      expect(config_class.text2).to eq("Bar")
+    it 'reads an attribute' do
+      expect(config_class.text2).to eq('Bar')
     end
   end
 
-  context "with typed attributes" do
+  context 'with typed attributes' do
     let(:number) { 1000 }
 
     let(:config_data) do
       {
-        "number" => number
+        'number' => number,
       }
     end
 
@@ -103,24 +103,42 @@ RSpec.describe LoadableConfig do
       attribute :number, type: :integer
     end
 
-    it "reads an attribute" do
+    it 'reads an attribute' do
       expect(config_class.number).to eq(number)
     end
 
-    context "provided as the incorrect type" do
-      let(:number) { "100" }
+    context 'provided as the incorrect type' do
+      let(:number) { '100' }
 
-      it "returns an error when accessing the instance" do
+      it 'returns an error when accessing the instance' do
         expect { config_class.instance }.to raise_error(ArgumentError, /number/)
       end
     end
   end
 
-  context "with complex typed attributes" do
+  context 'with a serialized attribute' do
+    let(:value) { 'hi' }
+
+    letblk(:attributes) do
+      attribute :value, type: :string, serializer: YAML
+    end
+
+    let(:config_data) do
+      {
+        'value' => "--- hi\n...\n",
+      }
+    end
+
+    it 'reads an attribute' do
+      expect(config_class.value).to eq(value)
+    end
+  end
+
+  context 'with complex typed attributes' do
     let(:object) do
       {
-        "number" => 1,
-        "string" => "cat"
+        'number' => 1,
+        'string' => 'cat',
       }
     end
 
@@ -129,55 +147,55 @@ RSpec.describe LoadableConfig do
                   'additionalProperties' => false,
                   'properties' => {
                     'number' => { 'type' => 'integer' },
-                    'string' => { 'type' => 'string' }
+                    'string' => { 'type' => 'string' },
                   },
-                  'required' => ['number', 'string']
+                  'required' => ['number', 'string'],
                 }
     end
 
     let(:config_data) do
       {
-        "object" => object
+        'object' => object,
       }
     end
 
-    it "reads an attribute" do
+    it 'reads an attribute' do
       expect(config_class.object).to eq(object)
     end
 
-    context "provided as the incorrect type" do
+    context 'provided as the incorrect type' do
       let(:object) do
         {
-          "unknown" => 1,
-          "string" => 3
+          'unknown' => 1,
+          'string' => 3,
         }
       end
 
-      it "returns an error when accessing the instance" do
+      it 'returns an error when accessing the instance' do
         expect { config_class.instance }.to raise_error(ArgumentError, /is not a/)
       end
     end
   end
 
-  context "with optional attributes" do
+  context 'with optional attributes' do
     letblk(:attributes) do
       attribute :text, optional: true
     end
 
-    it "reads an attribute" do
+    it 'reads an attribute' do
       expect(config_class.text).to eq(text)
     end
 
-    context "not provided" do
+    context 'not provided' do
       let(:config_data) { {} }
 
-      it "reads a missing optional attribute as nil" do
+      it 'reads a missing optional attribute as nil' do
         expect(config_class.text).to eq(nil)
       end
     end
   end
 
-  context "with environment keying" do
+  context 'with environment keying' do
     before(:each) do
       environment = self.environment
       LoadableConfig.configure! do |config|
@@ -191,35 +209,35 @@ RSpec.describe LoadableConfig do
 
     let(:config_data) do
       {
-        "development" => {
-          "text" => "dev"
+        'development' => {
+          'text' => 'dev',
         },
-        "production" => {
-          "text" => "prod"
-        }
+        'production' => {
+          'text' => 'prod',
+        },
       }
     end
 
-    context "for development" do
+    context 'for development' do
       let(:environment) { :development }
 
-      it "reads from the correct environment" do
-        expect(config_class.text).to eq("dev")
+      it 'reads from the correct environment' do
+        expect(config_class.text).to eq('dev')
       end
     end
 
-    context "for production" do
+    context 'for production' do
       let(:environment) { :production }
 
-      it "reads from the correct environment" do
-        expect(config_class.text).to eq("prod")
+      it 'reads from the correct environment' do
+        expect(config_class.text).to eq('prod')
       end
     end
 
-    context "for a missing enviroment" do
+    context 'for a missing enviroment' do
       let(:environment) { :does_not_exist }
 
-      it "raises an error when accessing the instance" do
+      it 'raises an error when accessing the instance' do
         expect { config_class.instance }
           .to raise_error(RuntimeError, /Configuration missing for environment/)
       end
@@ -243,15 +261,15 @@ RSpec.describe LoadableConfig do
     end
   end
 
-  context "with a missing config file" do
-    let(:data_file_path) { "nonexistent_file" }
+  context 'with a missing config file' do
+    let(:data_file_path) { 'nonexistent_file' }
 
-    it "returns an error when accessing the instance" do
+    it 'returns an error when accessing the instance' do
       expect { config_class.instance }.to raise_error(RuntimeError, /configuration file.*missing/)
     end
   end
 
-  context "with a path prefix" do
+  context 'with a path prefix' do
     # Test by slicing apart the basename and filename
     let(:path_parts) do
       File.split(data_file.path)
@@ -270,19 +288,19 @@ RSpec.describe LoadableConfig do
       LoadableConfig.send(:_reinitialize_configuration!)
     end
 
-    it "can read an attribute" do
+    it 'can read an attribute' do
       expect(config_class.text).to eq(text)
     end
   end
 
-  context "with no config_file set" do
+  context 'with no config_file set' do
     let(:config_class) do
       Class.new(LoadableConfig) do
         attribute :text
       end
     end
 
-    it "raises an error when accessing the instance" do
+    it 'raises an error when accessing the instance' do
       expect { config_class.instance }.to raise_error(RuntimeError, /config_file not set/)
     end
   end
