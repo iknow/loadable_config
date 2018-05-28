@@ -134,6 +134,42 @@ RSpec.describe LoadableConfig do
     end
   end
 
+  context 'with an array of types for an attribute' do
+    letblk(:attributes) do
+      attribute :nullable_string, type: [:string, :null]
+    end
+
+    context 'with actual string type' do
+      let(:config_data) do
+        { 'nullable_string' => 'cat' }
+      end
+
+      it 'reads an attribute' do
+        expect(config_class.nullable_string).to eq('cat')
+      end
+    end
+
+    context 'with actual null type' do
+      let(:config_data) do
+        { 'nullable_string' => nil }
+      end
+
+      it 'reads an attribute' do
+        expect(config_class.nullable_string).to eq(nil)
+      end
+    end
+
+    context 'with invalid actual type' do
+      let(:config_data) do
+        { 'nullable_string' => 7 }
+      end
+
+      it 'returns an error when accessing the instance' do
+        expect { config_class.instance }.to raise_error(ArgumentError, /is not a/)
+      end
+    end
+  end
+
   context 'with complex typed attributes' do
     let(:object) do
       {

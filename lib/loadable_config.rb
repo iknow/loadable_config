@@ -28,7 +28,10 @@ class LoadableConfig
                                 'attributes must not collide with class methods of LoadableConfig')
       end
 
-      _attributes << Attribute.new(attr.to_s, type.to_s, schema, optional, serializer)
+      type = [type] unless type.kind_of?(Array)
+      type.map! { |t| t.to_s }
+
+      _attributes << Attribute.new(attr.to_s, type, schema, optional, serializer)
       attr_accessor attr
       define_singleton_method(attr) { instance.send(attr) }
     end
