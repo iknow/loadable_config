@@ -42,8 +42,10 @@ If you store configuration keyed by environment, or want to set a
 project root for all subclasses, you can set global options:
 
 ```ruby
-LoadableConfig::Options.subkey             = Rails.env.to_s
-LoadableConfig::Options.config_path_prefix = Rails.root.to_s
+LoadableConfig.configure! do |config|
+  config.config_path_prefix = Rails.root
+  config.environment_key    = Rails.env
+end
 ```
 
 Attributes are validated according to [JSON Schema](http://json-schema.org)
