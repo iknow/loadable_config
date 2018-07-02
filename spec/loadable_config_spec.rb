@@ -292,7 +292,7 @@ RSpec.describe LoadableConfig do
       end
 
       it 'resolve aliases' do
-        expect(config_class.text).to eq("shared")
+        expect(config_class.text).to eq('shared')
       end
     end
   end
@@ -325,6 +325,29 @@ RSpec.describe LoadableConfig do
     end
 
     it 'can read an attribute' do
+      expect(config_class.text).to eq(text)
+    end
+  end
+
+  context 'with a preprocessor' do
+    let(:preprocess_text) { 'xxx' }
+    let(:config_data) do
+      { 'text' => preprocess_text }
+    end
+
+    before(:each) do
+      LoadableConfig.configure! do |config|
+        config.preprocess do |data|
+          data.gsub(preprocess_text, text)
+        end
+      end
+    end
+
+    after(:each) do
+      LoadableConfig.send(:_reinitialize_configuration!)
+    end
+
+    it 'can preprocess and read an attribute' do
       expect(config_class.text).to eq(text)
     end
   end
