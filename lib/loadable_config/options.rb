@@ -1,5 +1,7 @@
+# frozen_string_literal: true
+
 class LoadableConfig::Options
-  attr_reader :config_path_prefix, :environment_key
+  attr_reader :config_path_prefix, :environment_key, :preprocessor
 
   def initialize
     # Prefix for configuration file paths. Must be a valid directory, for
@@ -12,6 +14,10 @@ class LoadableConfig::Options
     # hash of the configuration attributes. Setting this specifies which top
     # level key to select. For example, `Rails.env`.
     @environment_key     = nil
+
+    # If set, uses the provided block to preprocess the configuration file
+    # before YAML parsing.
+    @preprocessor        = nil
   end
 
   def config_path_prefix=(val)
@@ -24,5 +30,9 @@ class LoadableConfig::Options
 
   def environment_key=(val)
     @environment_key = val.to_s
+  end
+
+  def preprocess(&block)
+    @preprocessor = block
   end
 end
