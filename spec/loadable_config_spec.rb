@@ -86,7 +86,26 @@ RSpec.describe LoadableConfig do
     end
 
     it 'reads an attribute' do
+      expect(config_class.text1).to eq('Foo')
       expect(config_class.text2).to eq('Bar')
+    end
+
+    context 'with optional arguments' do
+      let(:config_data) do
+        {
+          'text1' => "--- Foo\n...\n",
+          'text2' => "--- Bar\n...\n",
+        }
+      end
+
+      letblk(:attributes) do
+        attributes :text1, :text2, type: :string, serializer: YAML
+      end
+
+      it 'reads an attribute' do
+        expect(config_class.text1).to eq('Foo')
+        expect(config_class.text2).to eq('Bar')
+      end
     end
   end
 
