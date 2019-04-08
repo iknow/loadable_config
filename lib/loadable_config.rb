@@ -36,9 +36,9 @@ class LoadableConfig
       define_singleton_method(attr) { instance.send(attr) }
     end
 
-    def attributes(*attrs, type: :string, optional: false)
+    def attributes(*attrs, type: :string, optional: false, serializer: nil)
       attrs.each do |attr|
-        attribute(attr, type: type, optional: optional)
+        attribute(attr, type: type, optional: optional, serializer: serializer)
       end
     end
 
