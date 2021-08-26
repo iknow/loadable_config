@@ -7,12 +7,13 @@ require 'yaml'
 require 'singleton'
 
 class LoadableConfig
-  Attribute = Struct.new(:name, :type, :schema, :optional, :serializer)
+  Attribute = Struct.new(:name, :type, :schema, :optional, :serializer, :default)
 
   class << self
     attr_reader :_attributes, :_config_file
 
     def inherited(subclass)
+      super
       subclass.send(:include, Singleton)
     end
 
@@ -20,7 +21,7 @@ class LoadableConfig
       @_config_file = path
     end
 
-    def attribute(attr, type: :string, schema: {}, optional: false, serializer: nil)
+    def attribute(attr, type: :string, schema: {}, optional: false, serializer: nil, default: nil)
       @_attributes ||= []
       attr = attr.to_sym
       if ATTRIBUTE_BLACKLIST.include?(attr)
@@ -28,11 +29,12 @@ class LoadableConfig
                                 'attributes must not collide with class methods of LoadableConfig')
       end
 
-      type = [type] unless type.kind_of?(Array)
+      type = [type] unless type.is_a?(Array)
       type.map! { |t| t.to_s }
 
-      _attributes << Attribute.new(attr.to_s, type, schema, optional, serializer)
+      _attributes << Attribute.new(attr.to_s, type, schema, optional, serializer, default)
       attr_accessor attr
+
       define_singleton_method(attr) { instance.send(attr) }
     end
 
@@ -50,6 +52,7 @@ class LoadableConfig
       if @@_configuration.frozen?
         raise ArgumentError.new('Cannot configure LoadableConfig: already configured')
       end
+
       yield(@@_configuration)
       @@_configuration.freeze
     end
@@ -111,10 +114,15 @@ class LoadableConfig
     end
 
     self.class._attributes.each do |attr|
-      value = config[attr.name]
-      if attr.serializer
-        value = attr.serializer.load(value)
+      if config.has_key?(attr.name)
+        value = config[attr.name]
+        if attr.serializer
+          value = attr.serializer.load(value)
+        end
+      else
+        value = attr.default
       end
+
       self.public_send(:"#{attr.name}=", value)
     end
 
