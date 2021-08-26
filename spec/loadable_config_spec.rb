@@ -250,6 +250,24 @@ RSpec.describe LoadableConfig do
     end
   end
 
+  context 'with defaulted optional attributes' do
+    letblk(:attributes) do
+      attribute :text, optional: true, default: 'configured'
+    end
+
+    it 'reads an attribute' do
+      expect(config_class.text).to eq(text)
+    end
+
+    context 'not provided' do
+      let(:config_data) { {} }
+
+      it 'reads a missing optional attribute as nil' do
+        expect(config_class.text).to eq('configured')
+      end
+    end
+  end
+
   context 'with environment keying' do
     before(:each) do
       environment = self.environment
