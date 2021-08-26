@@ -13,6 +13,7 @@ class LoadableConfig
     attr_reader :_attributes, :_config_file
 
     def inherited(subclass)
+      super
       subclass.send(:include, Singleton)
     end
 
@@ -28,11 +29,12 @@ class LoadableConfig
                                 'attributes must not collide with class methods of LoadableConfig')
       end
 
-      type = [type] unless type.kind_of?(Array)
+      type = [type] unless type.is_a?(Array)
       type.map! { |t| t.to_s }
 
       _attributes << Attribute.new(attr.to_s, type, schema, optional, serializer)
       attr_accessor attr
+
       define_singleton_method(attr) { instance.send(attr) }
     end
 
@@ -50,6 +52,7 @@ class LoadableConfig
       if @@_configuration.frozen?
         raise ArgumentError.new('Cannot configure LoadableConfig: already configured')
       end
+
       yield(@@_configuration)
       @@_configuration.freeze
     end
