@@ -90,7 +90,7 @@ class LoadableConfig
       config_data = preprocessor.call(config_data)
     end
 
-    config = YAML.safe_load(config_data, [], [], true)
+    config = YAML.safe_load(config_data, aliases: true)
     unless config
       raise RuntimeError.new("Cannot configure #{self.class.name}: "\
                              "Configuration file empty for #{self.class.name}.")
