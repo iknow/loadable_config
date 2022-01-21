@@ -82,15 +82,23 @@ workflows:
   build:
     jobs:
       - test:
-          name: 'ruby 2.5'
-          ruby-version: "2.5"
-      - test:
           name: 'ruby 2.6'
           ruby-version: "2.6"
+      - test:
+          name: 'ruby 2.7'
+          ruby-version: "2.7"
+      - test:
+          name: 'ruby 3.0'
+          ruby-version: "3.0"
+      - test:
+          name: 'ruby 3.1'
+          ruby-version: "3.1"
       - publish:
           requires:
-            - 'ruby 2.5'
             - 'ruby 2.6'
+            - 'ruby 2.7'
+            - 'ruby 3.0'
+            - 'ruby 3.1'
           filters:
             branches:
               only: master
