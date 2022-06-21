@@ -21,7 +21,7 @@ class LoadableConfig
       @_config_file = path
     end
 
-    def attribute(attr, type: :string, schema: {}, optional: false, serializer: nil, default: nil)
+    def attribute(attr, type: :string, schema: {}, serializer: nil, default: nil, optional: !default.nil?)
       @_attributes ||= []
       attr = attr.to_sym
       if ATTRIBUTE_BLACKLIST.include?(attr)
