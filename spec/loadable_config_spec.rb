@@ -389,6 +389,28 @@ RSpec.describe LoadableConfig do
     end
   end
 
+  context 'with a overlay' do
+    let(:config_data) do
+      { 'text' => 'before' }
+    end
+
+    before(:each) do
+      LoadableConfig.configure! do |config|
+        config.overlay do |klazz|
+          { 'text' => "overlaid #{klazz.name}" }
+        end
+      end
+    end
+
+    after(:each) do
+      LoadableConfig.send(:_reinitialize_configuration!)
+    end
+
+    it 'can overlay an attribute' do
+      expect(config_class.text).to eq("overlaid #{config_class.name}")
+    end
+  end
+
   context 'with no config_file set' do
     let(:config_class) do
       Class.new(LoadableConfig) do

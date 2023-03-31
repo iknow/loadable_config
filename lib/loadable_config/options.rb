@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class LoadableConfig::Options
-  attr_reader :config_path_prefix, :environment_key, :preprocessor
+  attr_reader :config_path_prefix, :environment_key, :preprocessor, :overlay_function
 
   def initialize
     # Prefix for configuration file paths. Must be a valid directory, for
@@ -18,6 +18,11 @@ class LoadableConfig::Options
     # If set, uses the provided block to preprocess the configuration file
     # before YAML parsing.
     @preprocessor        = nil
+
+    # If set, calls the provided block with the configuration class after
+    # parsing to obtain a configuration overlay. If a value is returned, it is
+    # deep_merged into the application.
+    @overlay_function    = nil
   end
 
   def config_path_prefix=(val)
@@ -34,5 +39,9 @@ class LoadableConfig::Options
 
   def preprocess(&block)
     @preprocessor = block
+  end
+
+  def overlay(&block)
+    @overlay_function = block
   end
 end

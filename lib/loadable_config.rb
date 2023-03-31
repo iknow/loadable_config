@@ -103,6 +103,11 @@ class LoadableConfig
       end
     end
 
+    if (overlay_function = LoadableConfig._configuration.overlay_function)
+      overlay_data = overlay_function.call(self.class)
+      config = _deep_merge(config, overlay_data) if overlay_data
+    end
+
     unless config
       raise RuntimeError.new("Configuration file missing config for #{self.class.name}.")
     end
@@ -141,5 +146,15 @@ class LoadableConfig
       'required'             => self.class._attributes.reject(&:optional).map(&:name),
       'additionalProperties' => false,
     )
+  end
+
+  def _deep_merge(a_hash, b_hash)
+    a_hash.merge(b_hash) do |_key, a_val, b_val|
+      if a_val.is_a?(Hash) && b_val.is_a?(Hash)
+        _deep_merge(a_val, b_val)
+      else
+        b_val
+      end
+    end
   end
 end
